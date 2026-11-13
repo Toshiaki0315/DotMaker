@@ -6,6 +6,7 @@ import {
   type ColorMode,
   type ColorModeInfo,
 } from "./api";
+import { el, radio } from "./dom";
 
 export type ModeKind = ColorModeInfo["kind"];
 
@@ -30,21 +31,6 @@ export function modesForKind(kind: ModeKind): ColorModeInfo[] {
 
 export function kindOf(mode: ColorMode): ModeKind {
   return COLOR_MODES.find((m) => m.value === mode)!.kind;
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: Partial<HTMLElementTagNameMap[K]> = {},
-  children: (Node | string)[] = [],
-): HTMLElementTagNameMap[K] {
-  const node = Object.assign(document.createElement(tag), props);
-  node.append(...children);
-  return node;
-}
-
-function radio(name: string, value: string, label: string, checked: boolean): HTMLLabelElement {
-  const input = el("input", { type: "radio", name, value, checked });
-  return el("label", { className: "dm-radio" }, [input, label]);
 }
 
 /**

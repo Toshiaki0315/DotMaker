@@ -64,7 +64,9 @@ body { margin: 0; }
 .dm-radio { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .dm-radio input { accent-color: var(--accent); margin: 0; }
 .controls input:disabled, .controls input:disabled + * { cursor: not-allowed; }
-.controls:has(input:disabled) { opacity: 0.5; }
+#controls:has(input:disabled),
+#edit:has(#dm-crop-enabled:disabled),
+#export:has(input[name="dm-format"]:disabled) { opacity: 0.5; }
 
 .status { margin: 0; min-height: 1.5em; color: var(--muted); }
 
@@ -83,3 +85,34 @@ body { margin: 0; }
 }
 .frame img { max-width: 100%; max-height: 100%; object-fit: contain; image-rendering: pixelated; }
 .frame img:not([src]) { display: none; }
+
+/* --- 編集・書き出し --- */
+.dm-check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.dm-check input { accent-color: var(--accent); margin: 0; }
+.dm-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 6px 8px; align-items: center; margin: 8px 0; }
+.dm-grid select { grid-column: 2 / -1; }
+.dm-grid input, .dm-grid select {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.dm-grid :disabled { opacity: 0.5; }
+.controls fieldset:has(> .dm-check input:not(:checked)) .dm-grid { opacity: 0.6; }
+.dm-export { display: flex; flex-direction: column; gap: 8px; }
+.dm-export .dm-options { grid-template-columns: auto auto; justify-content: start; gap: 16px; }
+.dm-export-button {
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dm-export-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.preview figcaption span { font-variant-numeric: tabular-nums; margin-left: 6px; }

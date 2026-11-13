@@ -17,11 +17,13 @@
         </label>
         <p id="file-name" class="file-name">未選択</p>
         <div id="controls" class="controls"></div>
+        <div id="edit" class="controls"></div>
+        <div id="export" class="controls"></div>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </aside>
       <main class="preview">
-        <figure><figcaption>元画像</figcaption><div class="frame"><img id="original" alt="" /></div></figure>
-        <figure><figcaption>変換後</figcaption><div class="frame"><img id="result" alt="" /></div></figure>
+        <figure><figcaption>元画像 <span id="original-size"></span></figcaption><div class="frame"><img id="original" alt="" /></div></figure>
+        <figure><figcaption>変換後 <span id="result-size"></span></figcaption><div class="frame"><img id="result" alt="" /></div></figure>
       </main>
     </div>
   </body>

@@ -116,3 +116,34 @@ body { margin: 0; }
 }
 .dm-export-button:disabled { opacity: 0.5; cursor: not-allowed; }
 .preview figcaption span { font-variant-numeric: tabular-nums; margin-left: 6px; }
+
+/* --- Drag & Drop --- */
+.app { position: relative; }
+.app.dm-dragging::after {
+  content: "ここに画像をドロップ";
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg) 85%);
+  z-index: 10;
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.hint { color: var(--muted); text-align: center; line-height: 1.8; margin: 0; }
+.frame img[src] + .hint { display: none; }
+.dm-copy-button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.dm-copy-button:disabled { opacity: 0.5; cursor: not-allowed; }

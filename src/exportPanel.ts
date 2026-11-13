@@ -11,8 +11,12 @@ export interface ExportPanel {
 const LABEL = "書き出し…";
 const BUSY_LABEL = "書き出し中…";
 
-/** 出力フォーマット・JPEG品質・書き出しボタンを `root` に構築する */
-export function createExportPanel(root: HTMLElement, onExport: (options: ExportOptions) => void): ExportPanel {
+/** 出力フォーマット・JPEG品質・書き出しボタン・クリップボードへのコピーボタンを `root` に構築する */
+export function createExportPanel(
+  root: HTMLElement,
+  onExport: (options: ExportOptions) => void,
+  onCopy: () => void,
+): ExportPanel {
   let disabled = true;
   let busy = false;
 
@@ -24,6 +28,7 @@ export function createExportPanel(root: HTMLElement, onExport: (options: ExportO
   const qualityValue = el("output", {}, ["90"]);
   qualityValue.htmlFor.add("dm-quality");
   const button = el("button", { type: "button", className: "dm-export-button" }, [LABEL]);
+  const copyButton = el("button", { type: "button", className: "dm-copy-button" }, ["クリップボードにコピー"]);
 
   root.replaceChildren(
     el("fieldset", { className: "dm-export" }, [
@@ -31,6 +36,7 @@ export function createExportPanel(root: HTMLElement, onExport: (options: ExportO
       formats,
       el("div", { className: "dm-slider" }, [el("label", { htmlFor: "dm-quality" }, ["JPEG品質"]), quality, qualityValue]),
       button,
+      copyButton,
     ]),
   );
 
@@ -43,6 +49,7 @@ export function createExportPanel(root: HTMLElement, onExport: (options: ExportO
     formats.querySelectorAll("input").forEach((i) => (i.disabled = disabled));
     quality.disabled = disabled || format() !== "jpeg";
     button.disabled = disabled || busy;
+    copyButton.disabled = disabled;
     button.textContent = busy ? BUSY_LABEL : LABEL;
   };
 
@@ -51,6 +58,7 @@ export function createExportPanel(root: HTMLElement, onExport: (options: ExportO
     qualityValue.textContent = quality.value;
   });
   button.addEventListener("click", () => onExport(getOptions()));
+  copyButton.addEventListener("click", onCopy);
 
   render();
 

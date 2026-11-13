@@ -6,17 +6,20 @@ function setup() {
   const root = document.createElement("div");
   document.body.replaceChildren(root);
   const onExport = vi.fn<(o: ExportOptions) => void>();
-  const panel = createExportPanel(root, onExport);
+  const onCopy = vi.fn<() => void>();
+  const panel = createExportPanel(root, onExport, onCopy);
   const q = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
   return {
     root,
     panel,
     onExport,
+    onCopy,
     png: q<HTMLInputElement>('input[name="dm-format"][value="png"]'),
     jpeg: q<HTMLInputElement>('input[name="dm-format"][value="jpeg"]'),
     quality: q<HTMLInputElement>("#dm-quality"),
     qualityValue: q<HTMLOutputElement>("output"),
-    button: q<HTMLButtonElement>("button"),
+    button: q<HTMLButtonElement>(".dm-export-button"),
+    copyButton: q<HTMLButtonElement>(".dm-copy-button"),
   };
 }
 
@@ -70,7 +73,18 @@ describe("createExportPanel", () => {
     t.panel.setDisabled(false);
     choose(t.jpeg);
     t.panel.setDisabled(true);
-    expect([t.png, t.jpeg, t.quality, t.button].every((e) => e.disabled)).toBe(true);
+    expect([t.png, t.jpeg, t.quality, t.button, t.copyButton].every((e) => e.disabled)).toBe(true);
+  });
+
+  it("コピーボタンで onCopy を呼ぶ（初期状態は無効）", () => {
+    const t = setup();
+    expect(t.copyButton.textContent).toBe("クリップボードにコピー");
+    expect(t.copyButton.disabled).toBe(true);
+    t.panel.setDisabled(false);
+    expect(t.copyButton.disabled).toBe(false);
+    t.copyButton.click();
+    expect(t.onCopy).toHaveBeenCalledTimes(1);
+    expect(t.onExport).not.toHaveBeenCalled();
   });
 
   it("setBusy 中はボタンが無効になり表示が変わる", () => {

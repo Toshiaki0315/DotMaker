@@ -1,6 +1,7 @@
 //! フロントエンドから呼び出される Tauri コマンド。
 //! ロジックは Tauri ランタイム非依存の関数に分離し、単体テスト可能にしている。
 
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use image::RgbaImage;
@@ -39,9 +40,19 @@ pub fn decode(data: &[u8]) -> Result<RgbaImage, String> {
     if is_heif(data) {
         return decode_heif(data);
     }
-    image::load_from_memory(data)
-        .map(|img| img.to_rgba8())
-        .map_err(|e| format!("画像の読み込みに失敗しました: {e}"))
+    decode_with_orientation(data).map_err(|e| format!("画像の読み込みに失敗しました: {e}"))
+}
+
+/// `image` クレートでデコードし、EXIF の向き情報（JPEG / TIFF / PNG など）を反映する。
+/// 向き情報が読めない場合は回転しない。
+fn decode_with_orientation(data: &[u8]) -> image::ImageResult<RgbaImage> {
+    use image::{DynamicImage, ImageDecoder, ImageReader, metadata::Orientation};
+
+    let mut decoder = ImageReader::new(Cursor::new(data)).with_guessed_format()?.into_decoder()?;
+    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
+    let mut img = DynamicImage::from_decoder(decoder)?;
+    img.apply_orientation(orientation);
+    Ok(img.to_rgba8())
 }
 
 /// トリミング → リサイズ → ドット化 → 減色 の順に処理する
@@ -117,7 +128,6 @@ pub fn export_image(
 mod tests {
     use super::*;
     use image::{ImageFormat, Rgba};
-    use std::io::Cursor;
 
     fn encode_as(img: &RgbaImage, fmt: ImageFormat) -> Vec<u8> {
         let mut buf = Cursor::new(Vec::new());
@@ -163,6 +173,21 @@ mod tests {
         assert_eq!(image_info_bytes(rotated), Ok(ImageInfo { width: 8, height: 16 }));
         let png = process_image_bytes(sample, opts(4, ColorMode::Color16)).unwrap();
         assert_eq!(image::guess_format(&png).unwrap(), ImageFormat::Png);
+    }
+
+    #[test]
+    fn decode_applies_exif_orientation_for_jpeg_and_tiff() {
+        // orientation=6: 表示時に 90° 時計回り → 左半分(赤)が上に来る 8x16 画像
+        let near = |p: &Rgba<u8>, c: [u8; 3]| p.0[..3].iter().zip(c).all(|(&a, b)| a.abs_diff(b) <= 40);
+        for (name, data) in [
+            ("jpg", &include_bytes!("../tests/fixtures/rotated.jpg")[..]),
+            ("tiff", &include_bytes!("../tests/fixtures/rotated.tiff")[..]),
+        ] {
+            let img = decode(data).unwrap();
+            assert_eq!(img.dimensions(), (8, 16), "{name}");
+            assert!(near(img.get_pixel(4, 2), [255, 0, 0]), "{name}: {:?}", img.get_pixel(4, 2));
+            assert!(near(img.get_pixel(4, 13), [0, 0, 255]), "{name}: {:?}", img.get_pixel(4, 13));
+        }
     }
 
     #[test]

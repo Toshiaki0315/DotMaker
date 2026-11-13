@@ -1,8 +1,10 @@
-// HEIC テスト用フィクスチャの生成スクリプト（macOS の ImageIO を使用）
-// 使い方: swift src-tauri/tests/fixtures/generate_heic.swift src-tauri/tests/fixtures
+// テスト用フィクスチャの生成スクリプト（macOS の ImageIO を使用）
+// 使い方: swift src-tauri/tests/fixtures/generate_fixtures.swift src-tauri/tests/fixtures
 //
-// - sample.heic : 16x8、左半分が赤・右半分が青、向き情報なし (orientation = 1)
-// - rotated.heic: 同じ画素に orientation = 6（表示時に 90° 時計回り）を付与
+// 画素はすべて 16x8、左半分が赤・右半分が青。
+// - sample.heic : 向き情報なし (orientation = 1)
+// - rotated.heic / rotated.jpg / rotated.tiff:
+//     orientation = 6（表示時に 90° 時計回り）を付与。正しく反映すると 8x16 で上半分が赤になる
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -24,9 +26,9 @@ let ctx = CGContext(
     bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
 let image = ctx.makeImage()!
 
-func write(_ name: String, orientation: Int) {
+func write(_ name: String, type: UTType, orientation: Int) {
     let url = outDir.appendingPathComponent(name)
-    let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.heic.identifier as CFString, 1, nil)!
+    let dest = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil)!
     let props: [CFString: Any] = [
         kCGImageDestinationLossyCompressionQuality: 1.0,
         kCGImagePropertyOrientation: orientation,
@@ -36,5 +38,7 @@ func write(_ name: String, orientation: Int) {
     print("wrote \(url.path)")
 }
 
-write("sample.heic", orientation: 1)
-write("rotated.heic", orientation: 6)
+write("sample.heic", type: .heic, orientation: 1)
+write("rotated.heic", type: .heic, orientation: 6)
+write("rotated.jpg", type: .jpeg, orientation: 6)
+write("rotated.tiff", type: .tiff, orientation: 6)

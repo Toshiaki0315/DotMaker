@@ -78,7 +78,7 @@ pub fn decode_heif(_data: &[u8]) -> Result<RgbaImage, String> {
 
 /// 乗算済みアルファ (premultiplied) の RGBA を通常の RGBA に戻す
 fn unpremultiply(buf: &mut [u8]) {
-    for px in buf.chunks_exact_mut(4) {
+    for px in buf.as_chunks_mut::<4>().0 {
         let a = u16::from(px[3]);
         if a != 0 && a != 255 {
             for c in &mut px[..3] {

@@ -1,47 +1,44 @@
-import { COLOR_MODES, ColorMode, processImage } from "./api";
+import { processImage } from "./api";
+import { createControls, type ControlState } from "./controls";
+import { latestOnly } from "./latest";
 
-// DOM への配線のみ（ロジックは api.ts でテスト済み）
+// DOM への配線のみ（ロジックは api.ts / controls.ts / latest.ts でテスト済み）
 const fileInput = document.querySelector<HTMLInputElement>("#file-input")!;
-const blockSize = document.querySelector<HTMLInputElement>("#block-size")!;
-const blockSizeValue = document.querySelector<HTMLElement>("#block-size-value")!;
-const colorMode = document.querySelector<HTMLSelectElement>("#color-mode")!;
+const fileName = document.querySelector<HTMLElement>("#file-name")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 const original = document.querySelector<HTMLImageElement>("#original")!;
 const result = document.querySelector<HTMLImageElement>("#result")!;
 
-for (const m of COLOR_MODES) {
-  colorMode.add(new Option(`${m.kind === "color" ? "カラー" : "モノクロ"} ${m.label}`, m.value));
-}
-colorMode.value = "color256";
-
 let source: Uint8Array | null = null;
+const convert = latestOnly(processImage);
 
-async function render() {
+function showImage(img: HTMLImageElement, blob: Blob) {
+  if (img.src) URL.revokeObjectURL(img.src);
+  img.src = URL.createObjectURL(blob);
+}
+
+async function render(state: ControlState) {
   if (!source) return;
   status.textContent = "変換中…";
   try {
-    const png = await processImage(source, {
-      blockSize: Number(blockSize.value),
-      colorMode: colorMode.value as ColorMode,
-    });
-    URL.revokeObjectURL(result.src);
-    result.src = URL.createObjectURL(new Blob([png as BlobPart], { type: "image/png" }));
+    const r = await convert(source, state);
+    if (r.stale) return;
+    showImage(result, new Blob([r.value as BlobPart], { type: "image/png" }));
     status.textContent = "";
   } catch (e) {
     status.textContent = (e as Error).message;
   }
 }
 
+const controls = createControls(document.querySelector<HTMLElement>("#controls")!, render);
+controls.setDisabled(true);
+
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if (!file) return;
+  fileName.textContent = file.name;
   source = new Uint8Array(await file.arrayBuffer());
-  URL.revokeObjectURL(original.src);
-  original.src = URL.createObjectURL(file);
-  await render();
+  showImage(original, file);
+  controls.setDisabled(false);
+  await render(controls.getState());
 });
-blockSize.addEventListener("input", () => {
-  blockSizeValue.textContent = blockSize.value;
-});
-blockSize.addEventListener("change", render);
-colorMode.addEventListener("change", render);

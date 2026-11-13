@@ -8,18 +8,21 @@
     <script type="module" src="/src/main.ts" defer></script>
   </head>
   <body>
-    <main class="container">
-      <h1>DotMaker</h1>
-      <section class="controls">
-        <input id="file-input" type="file" accept="image/png,image/jpeg,image/gif,image/tiff,image/bmp" />
-        <label>ドットの粗さ <input id="block-size" type="range" min="1" max="64" value="8" /> <span id="block-size-value">8</span></label>
-        <label>モード <select id="color-mode"></select></label>
-      </section>
-      <p id="status"></p>
-      <section class="preview">
-        <figure><figcaption>元画像</figcaption><img id="original" alt="" /></figure>
-        <figure><figcaption>変換後</figcaption><img id="result" alt="" /></figure>
-      </section>
-    </main>
+    <div class="app">
+      <aside class="sidebar">
+        <h1>DotMaker</h1>
+        <label class="file-button">
+          画像を開く…
+          <input id="file-input" type="file" accept="image/png,image/jpeg,image/gif,image/tiff,image/bmp" />
+        </label>
+        <p id="file-name" class="file-name">未選択</p>
+        <div id="controls" class="controls"></div>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </aside>
+      <main class="preview">
+        <figure><figcaption>元画像</figcaption><div class="frame"><img id="original" alt="" /></div></figure>
+        <figure><figcaption>変換後</figcaption><div class="frame"><img id="result" alt="" /></div></figure>
+      </main>
+    </div>
   </body>
 </html>

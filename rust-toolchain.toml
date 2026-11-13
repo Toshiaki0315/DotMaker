@@ -1,0 +1,6 @@
+# Rust ツールチェーンのバージョン固定（ローカルと CI で同じ版を使う）
+# 更新するときはこの channel を書き換え、`make lint` と `make coverage` が通ることを確認する
+[toolchain]
+channel = "1.100.0"
+components = ["clippy", "rustfmt", "llvm-tools"]
+profile = "minimal"

@@ -13,6 +13,10 @@ https://github.com/Toshiaki0315/DotMaker.git
 - **Build System**: Make
 - **Test**: TDD (Unit test coverage target: >= 90%)
 
+## 開発環境
+- Rust のバージョンは [rust-toolchain.toml](./rust-toolchain.toml) で固定しています（ローカル・CI 共通）。rustup が自動で該当バージョンを使用します。
+- Node.js のバージョンは [.nvmrc](./.nvmrc) で指定しています。
+
 ## コマンド
 - `make dev`: 開発サーバー起動
 - `make app`: アプリケーションのビルド（アドホック署名）

@@ -43,6 +43,12 @@ export const COLOR_MODES: readonly ColorModeInfo[] = [
   { value: "gray256", label: "256階調", kind: "gray" },
 ];
 
+/** ファイル選択で受け付ける形式（仕様 2.4 の入力フォーマット） */
+export const ACCEPTED_FILE_TYPES = [
+  "image/jpeg", "image/png", "image/gif", "image/tiff", "image/bmp",
+  "image/heic", "image/heif", ".heic", ".heif",
+].join(",");
+
 export const MIN_BLOCK_SIZE = 1;
 export const MAX_BLOCK_SIZE = 64;
 
@@ -75,6 +81,11 @@ async function call<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
 export async function processImage(data: Uint8Array, options: ProcessOptions): Promise<Uint8Array> {
   const result = await call<number[]>("process_image", { data: Array.from(data), options: toRustOptions(options) });
   return new Uint8Array(result);
+}
+
+/** 元画像を（向きを反映して）表示用 PNG に変換する。HEIC も表示できる */
+export async function previewOriginal(data: Uint8Array): Promise<Uint8Array> {
+  return new Uint8Array(await call<number[]>("preview_original", { data: Array.from(data) }));
 }
 
 /** 画像の幅・高さを取得する */

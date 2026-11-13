@@ -7,6 +7,7 @@ use image::RgbaImage;
 use serde::{Deserialize, Serialize};
 
 use crate::export::{encode, with_extension, ExportFormat, ExportOptions};
+use crate::heic::{decode_heif, is_heif};
 use crate::processing::{pixelate, reduce_colors, ColorMode};
 use crate::transform::{crop, resize, CropRect, Size};
 
@@ -35,6 +36,9 @@ pub struct ImageInfo {
 
 /// バイト列を RGBA 画像にデコードする
 pub fn decode(data: &[u8]) -> Result<RgbaImage, String> {
+    if is_heif(data) {
+        return decode_heif(data);
+    }
     image::load_from_memory(data)
         .map(|img| img.to_rgba8())
         .map_err(|e| format!("画像の読み込みに失敗しました: {e}"))
@@ -57,6 +61,11 @@ pub fn run_pipeline(img: &RgbaImage, options: ProcessOptions) -> Result<RgbaImag
 pub fn process_image_bytes(data: &[u8], options: ProcessOptions) -> Result<Vec<u8>, String> {
     let out = run_pipeline(&decode(data)?, options)?;
     Ok(encode(&out, ExportOptions { format: ExportFormat::Png, quality: 100 }))
+}
+
+/// 元画像を（向きを反映して）デコードし、表示用の PNG バイト列で返す。
+pub fn preview_original_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    Ok(encode(&decode(data)?, ExportOptions { format: ExportFormat::Png, quality: 100 }))
 }
 
 /// 画像バイト列から幅・高さを取得する。
@@ -82,6 +91,11 @@ pub fn export_image_to(
 #[tauri::command]
 pub fn process_image(data: Vec<u8>, options: ProcessOptions) -> Result<Vec<u8>, String> {
     process_image_bytes(&data, options)
+}
+
+#[tauri::command]
+pub fn preview_original(data: Vec<u8>) -> Result<Vec<u8>, String> {
+    preview_original_bytes(&data)
 }
 
 #[tauri::command]
@@ -142,6 +156,16 @@ mod tests {
     }
 
     #[test]
+    fn decode_accepts_heic_with_orientation() {
+        let sample = include_bytes!("../tests/fixtures/sample.heic");
+        let rotated = include_bytes!("../tests/fixtures/rotated.heic");
+        assert_eq!(decode(sample).map(|i| i.dimensions()), Ok((16, 8)));
+        assert_eq!(image_info_bytes(rotated), Ok(ImageInfo { width: 8, height: 16 }));
+        let png = process_image_bytes(sample, opts(4, ColorMode::Color16)).unwrap();
+        assert_eq!(image::guess_format(&png).unwrap(), ImageFormat::Png);
+    }
+
+    #[test]
     fn decode_invalid_data_returns_error() {
         let err = decode(b"not an image").unwrap_err();
         assert!(err.contains("画像の読み込みに失敗"), "{err}");
@@ -159,6 +183,18 @@ mod tests {
     fn image_info_serializes_to_json() {
         let json = serde_json::to_string(&ImageInfo { width: 1, height: 2 }).unwrap();
         assert_eq!(json, r#"{"width":1,"height":2}"#);
+    }
+
+    #[test]
+    fn preview_original_returns_unmodified_png() {
+        let img = RgbaImage::from_fn(5, 3, |x, y| Rgba([x as u8 * 40, y as u8 * 80, 7, 255]));
+        let out = preview_original_bytes(&png_of(&img)).unwrap();
+        assert_eq!(image::load_from_memory(&out).unwrap().to_rgba8(), img);
+        assert_eq!(preview_original(png_of(&img)), Ok(out));
+        let heic = preview_original_bytes(include_bytes!("../tests/fixtures/rotated.heic")).unwrap();
+        let decoded = image::load_from_memory(&heic).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (8, 16));
+        assert!(preview_original_bytes(b"zz").is_err());
     }
 
     // ---------- run_pipeline ----------

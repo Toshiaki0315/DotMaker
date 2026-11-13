@@ -6,10 +6,12 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => invokeM
 vi.mock("@tauri-apps/plugin-dialog", () => ({ save: (...args: unknown[]) => saveMock(...args) }));
 
 import {
+  ACCEPTED_FILE_TYPES,
   COLOR_MODES,
   chooseSavePath,
   exportImage,
   imageInfo,
+  previewOriginal,
   processImage,
   suggestFileName,
   validateBlockSize,
@@ -89,6 +91,27 @@ describe("imageInfo", () => {
   it("エラーは Error として投げ直す", async () => {
     invokeMock.mockRejectedValue("bad");
     await expect(imageInfo(new Uint8Array())).rejects.toThrow("bad");
+  });
+});
+
+describe("previewOriginal", () => {
+  it("preview_original コマンドで表示用 PNG を取得する", async () => {
+    invokeMock.mockResolvedValue([1, 2]);
+    const png = await previewOriginal(new Uint8Array([7]));
+    expect(Array.from(png)).toEqual([1, 2]);
+    expect(invokeMock).toHaveBeenCalledWith("preview_original", { data: [7] });
+  });
+  it("エラーは Error として投げ直す", async () => {
+    invokeMock.mockRejectedValue("HEIC 画像の読み込みに失敗しました");
+    await expect(previewOriginal(new Uint8Array())).rejects.toThrow("HEIC");
+  });
+});
+
+describe("ACCEPTED_FILE_TYPES", () => {
+  it("仕様の入力フォーマット（HEIC を含む）を受け付ける", () => {
+    for (const t of ["image/jpeg", "image/png", "image/gif", "image/tiff", "image/bmp", "image/heic", "image/heif", ".heic", ".heif"]) {
+      expect(ACCEPTED_FILE_TYPES.split(",")).toContain(t);
+    }
   });
 });
 

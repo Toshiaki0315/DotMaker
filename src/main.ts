@@ -1,4 +1,13 @@
-import { chooseSavePath, exportImage, imageInfo, processImage, suggestFileName, type ProcessOptions } from "./api";
+import {
+  ACCEPTED_FILE_TYPES,
+  chooseSavePath,
+  exportImage,
+  imageInfo,
+  previewOriginal,
+  processImage,
+  suggestFileName,
+  type ProcessOptions,
+} from "./api";
 import { createControls } from "./controls";
 import { createEditPanel } from "./editPanel";
 import { createExportPanel } from "./exportPanel";
@@ -13,6 +22,8 @@ const original = $<HTMLImageElement>("#original");
 const result = $<HTMLImageElement>("#result");
 const originalSize = $("#original-size");
 const resultSize = $("#result-size");
+
+fileInput.accept = ACCEPTED_FILE_TYPES;
 
 let source: Uint8Array | null = null;
 let sourceName: string | null = null;
@@ -74,12 +85,12 @@ fileInput.addEventListener("change", async () => {
   if (!file) return;
   const data = new Uint8Array(await file.arrayBuffer());
   try {
-    const info = await imageInfo(data);
+    const [info, preview] = await Promise.all([imageInfo(data), previewOriginal(data)]);
     source = data;
     sourceName = file.name;
     fileName.textContent = file.name;
     originalSize.textContent = `${info.width} × ${info.height}`;
-    showImage(original, file);
+    showImage(original, new Blob([preview as BlobPart], { type: "image/png" }));
     edit.setImageSize(info);
     setEnabled(true);
     await render();

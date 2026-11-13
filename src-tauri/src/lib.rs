@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod export;
+pub mod heic;
 pub mod processing;
 pub mod transform;
 
@@ -12,6 +13,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::process_image,
             commands::image_info,
+            commands::preview_original,
             commands::export_image
         ])
         .run(tauri::generate_context!())

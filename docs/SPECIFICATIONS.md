@@ -49,3 +49,9 @@
 - PNG（透明を保持）または JPEG（品質 1〜100、既定 90。透明部分は白で合成）で保存する。
 - 保存先は保存ダイアログで選ぶ。拡張子がフォーマットと合わない場合は末尾に補う（例: `photo` → `photo.png`）。
 - 既定のファイル名は「元ファイル名_dot.拡張子」。
+
+### 4.6. 画像の読み込み（HEIC）
+- HEIC/HEIF はファイル先頭の `ftyp` ボックスのメジャーブランド（heic, heix, hevc, hevx, heim, heis, hevm, hevs, mif1, msf1）で判定し、macOS 標準の ImageIO でデコードする（外部ライブラリ不要）。
+- HEIC は向き情報（回転・反転）を反映して読み込む。
+- 元画像のプレビューも Rust 側でデコードした PNG を表示し、変換処理と見た目を一致させる。
+- テスト用フィクスチャは `src-tauri/tests/fixtures/generate_heic.swift` で再生成できる。

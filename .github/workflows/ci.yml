@@ -80,7 +80,7 @@ jobs:
       - name: Archive .app
         run: ditto -c -k --keepParent src-tauri/target/release/bundle/macos/DotMaker.app DotMaker-macos-arm64.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: DotMaker-macos-arm64
           path: DotMaker-macos-arm64.zip

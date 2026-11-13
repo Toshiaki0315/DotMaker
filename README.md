@@ -1,5 +1,7 @@
 # DotMaker
 
+[![CI](https://github.com/Toshiaki0315/DotMaker/actions/workflows/ci.yml/badge.svg)](https://github.com/Toshiaki0315/DotMaker/actions/workflows/ci.yml)
+
 画像をレトロなドット絵（ピクセルアート）風に変換・編集できる画像加工デスクトップアプリケーション。
 
 ## リポジトリ
@@ -16,6 +18,11 @@ https://github.com/Toshiaki0315/DotMaker.git
 - `make app`: アプリケーションのビルド（アドホック署名）
 - `make dmg`: DMGファイルの生成
 - `make test`: テスト実行（Rust & TypeScript）
+- `make coverage`: カバレッジ計測（90%未満で失敗）
+- `make lint`: clippy / tsc による静的チェック
+
+## CI
+GitHub Actions（macOS arm64）で push / PR ごとに lint・テスト・カバレッジ（90%閾値）を実行し、アドホック署名済み `.app` をビルドしてアーティファクトとして保存します。
 
 ## ドキュメント
 - [SPECIFICATIONS.md](./docs/SPECIFICATIONS.md): アプリの要求仕様

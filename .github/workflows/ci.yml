@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Lint / Test / Coverage
+    runs-on: macos-latest # Apple Silicon (arm64)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # tauri::generate_context! はコンパイル時に dist/ を参照するため先にビルドする
+      - name: Build frontend
+        run: npm run build
+
+      - name: Lint (clippy / tsc)
+        run: make lint
+
+      - name: Test & coverage (>= 90%)
+        run: make coverage
+
+  build:
+    name: Build macOS app (ad-hoc signed)
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build .app
+        run: npm run tauri build -- --bundles app
+
+      - name: Verify ad-hoc signature
+        run: codesign -dv src-tauri/target/release/bundle/macos/DotMaker.app 2>&1 | grep 'Signature=adhoc'
+
+      - name: Archive .app
+        run: ditto -c -k --keepParent src-tauri/target/release/bundle/macos/DotMaker.app DotMaker-macos-arm64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DotMaker-macos-arm64
+          path: DotMaker-macos-arm64.zip
+          retention-days: 14

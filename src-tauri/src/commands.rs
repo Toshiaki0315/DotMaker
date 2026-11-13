@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::export::{encode, with_extension, ExportFormat, ExportOptions};
 use crate::heic::{decode_heif, is_heif};
-use crate::processing::{pixelate, reduce_colors, ColorMode};
+use crate::processing::{adjust_contrast, pixelate, reduce_colors, ColorMode};
 use crate::transform::{crop, resize, CropRect, Size};
 
 /// 変換オプション
@@ -26,6 +26,9 @@ pub struct ProcessOptions {
     /// 出力サイズ。省略時はリサイズしない。
     #[serde(default)]
     pub resize: Option<Size>,
+    /// コントラスト (-100〜100)。省略時は 0（変更なし）。
+    #[serde(default)]
+    pub contrast: i32,
 }
 
 /// 画像の基本情報
@@ -55,7 +58,7 @@ fn decode_with_orientation(data: &[u8]) -> image::ImageResult<RgbaImage> {
     Ok(img.to_rgba8())
 }
 
-/// トリミング → リサイズ → ドット化 → 減色 の順に処理する
+/// トリミング → リサイズ → コントラスト → ドット化 → 減色 の順に処理する
 pub fn run_pipeline(img: &RgbaImage, options: ProcessOptions) -> Result<RgbaImage, String> {
     let cropped = match options.crop {
         Some(rect) => crop(img, rect)?,
@@ -65,7 +68,8 @@ pub fn run_pipeline(img: &RgbaImage, options: ProcessOptions) -> Result<RgbaImag
         Some(size) => resize(&cropped, size)?,
         None => cropped,
     };
-    Ok(reduce_colors(&pixelate(&resized, options.block_size), options.color_mode))
+    let contrasted = adjust_contrast(&resized, options.contrast);
+    Ok(reduce_colors(&pixelate(&contrasted, options.block_size), options.color_mode))
 }
 
 /// 画像バイト列を処理し、プレビュー用の PNG バイト列で返す。
@@ -143,7 +147,7 @@ mod tests {
     }
 
     fn opts(block_size: u32, color_mode: ColorMode) -> ProcessOptions {
-        ProcessOptions { block_size, color_mode, crop: None, resize: None }
+        ProcessOptions { block_size, color_mode, crop: None, resize: None, contrast: 0 }
     }
 
     /// テストごとに一意な一時ディレクトリ
@@ -259,6 +263,17 @@ mod tests {
     }
 
     #[test]
+    fn pipeline_applies_contrast_before_pixelate() {
+        // 100 と 160 → コントラスト+100 で 0 と 255 → ブロック2の平均で 128。
+        // （ドット化を先にすると平均 130 → 255 になってしまう）
+        let mut img = RgbaImage::from_pixel(2, 1, Rgba([100, 100, 100, 255]));
+        img.put_pixel(1, 0, Rgba([160, 160, 160, 255]));
+        let o = ProcessOptions { contrast: 100, ..opts(2, ColorMode::Gray256) };
+        let out = run_pipeline(&img, o).unwrap();
+        assert!(out.pixels().all(|p| *p == Rgba([128, 128, 128, 255])), "{:?}", out.get_pixel(0, 0));
+    }
+
+    #[test]
     fn pipeline_propagates_crop_and_resize_errors() {
         let img = RgbaImage::new(4, 4);
         let bad_crop = ProcessOptions { crop: Some(CropRect { x: 3, y: 3, width: 5, height: 5 }), ..opts(1, ColorMode::Gray2) };
@@ -294,6 +309,8 @@ mod tests {
         .unwrap();
         assert_eq!(o.crop, Some(CropRect { x: 1, y: 2, width: 3, height: 4 }));
         assert_eq!(o.resize, Some(Size { width: 5, height: 6 }));
+        let o: ProcessOptions = serde_json::from_str(r#"{"blockSize":1,"colorMode":"gray2","contrast":-30}"#).unwrap();
+        assert_eq!(o.contrast, -30);
         let o: ProcessOptions = serde_json::from_str(r#"{"blockSize":1,"colorMode":"gray2","crop":null,"resize":null}"#).unwrap();
         assert_eq!(o, opts(1, ColorMode::Gray2));
     }

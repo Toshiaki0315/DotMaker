@@ -1,8 +1,10 @@
 import {
   COLOR_MODES,
   MAX_BLOCK_SIZE,
+  MAX_CONTRAST,
   MIN_BLOCK_SIZE,
   validateBlockSize,
+  validateContrast,
   type ColorMode,
   type ColorModeInfo,
 } from "./api";
@@ -13,6 +15,8 @@ export type ModeKind = ColorModeInfo["kind"];
 export interface ControlState {
   blockSize: number;
   colorMode: ColorMode;
+  /** コントラスト (-100〜100、0 で変更なし) */
+  contrast: number;
 }
 
 export interface Controls {
@@ -20,7 +24,7 @@ export interface Controls {
   setDisabled(disabled: boolean): void;
 }
 
-const DEFAULT_STATE: ControlState = { blockSize: 8, colorMode: "color256" };
+const DEFAULT_STATE: ControlState = { blockSize: 8, colorMode: "color256", contrast: 0 };
 const DEFAULT_MODE: Record<ModeKind, ColorMode> = { color: "color256", gray: "gray256" };
 const KIND_LABEL: Record<ModeKind, string> = { color: "カラー", gray: "モノクロ" };
 const LEVEL_LEGEND: Record<ModeKind, string> = { color: "色数", gray: "階調" };
@@ -45,6 +49,7 @@ export function createControls(
   const state: ControlState = {
     blockSize: validateBlockSize(initial.blockSize ?? DEFAULT_STATE.blockSize),
     colorMode: initial.colorMode ?? DEFAULT_STATE.colorMode,
+    contrast: validateContrast(initial.contrast ?? DEFAULT_STATE.contrast),
   };
   const lastMode: Record<ModeKind, ColorMode> = { ...DEFAULT_MODE, [kindOf(state.colorMode)]: state.colorMode };
   let disabled = false;
@@ -73,6 +78,38 @@ export function createControls(
     el("label", { htmlFor: "dm-block-size" }, ["ドットの粗さ"]),
     slider,
     sliderValue,
+  ]);
+
+  // --- コントラスト ---
+  const signed = (v: number) => (v > 0 ? `+${v}` : String(v));
+  const contrast = el("input", {
+    type: "range",
+    id: "dm-contrast",
+    min: String(-MAX_CONTRAST),
+    max: String(MAX_CONTRAST),
+    step: "1",
+    value: String(state.contrast),
+    title: "ダブルクリックで 0 に戻す",
+  });
+  const contrastValue = el("output", {}, [signed(state.contrast)]);
+  contrastValue.htmlFor.add("dm-contrast");
+  const commitContrast = () => {
+    state.contrast = validateContrast(Number(contrast.value));
+    contrastValue.textContent = signed(state.contrast);
+    emit();
+  };
+  contrast.addEventListener("input", () => {
+    contrastValue.textContent = signed(Number(contrast.value));
+  });
+  contrast.addEventListener("change", commitContrast);
+  contrast.addEventListener("dblclick", () => {
+    contrast.value = "0";
+    commitContrast();
+  });
+  const contrastRow = el("div", { className: "dm-slider" }, [
+    el("label", { htmlFor: "dm-contrast" }, ["コントラスト"]),
+    contrast,
+    contrastValue,
   ]);
 
   // --- カラー / モノクロ ---
@@ -112,7 +149,7 @@ export function createControls(
     emit();
   });
 
-  root.replaceChildren(sliderRow, kindFieldset, levelFieldset);
+  root.replaceChildren(sliderRow, contrastRow, kindFieldset, levelFieldset);
   renderLevels();
 
   return {

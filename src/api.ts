@@ -15,6 +15,8 @@ export interface ProcessOptions {
   crop?: CropRect | null;
   /** 出力サイズ。null/省略でリサイズしない */
   resize?: Size | null;
+  /** コントラスト (-100〜100)。省略で 0（変更なし） */
+  contrast?: number;
 }
 
 /** Rust 側 `ExportFormat` と一致させること */
@@ -49,6 +51,9 @@ export const ACCEPTED_FILE_TYPES = [
   "image/heic", "image/heif", ".heic", ".heif",
 ].join(",");
 
+/** Rust 側 `MAX_CONTRAST` と一致させること */
+export const MAX_CONTRAST = 100;
+
 export const MIN_BLOCK_SIZE = 1;
 export const MAX_BLOCK_SIZE = 64;
 
@@ -60,12 +65,19 @@ export function validateBlockSize(value: number): number {
   return Math.min(MAX_BLOCK_SIZE, Math.max(MIN_BLOCK_SIZE, Math.round(value)));
 }
 
+/** コントラストを -100〜100 の整数に正規化する */
+export function validateContrast(value: number): number {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(MAX_CONTRAST, Math.max(-MAX_CONTRAST, Math.round(value)));
+}
+
 function toRustOptions(options: ProcessOptions) {
   return {
     blockSize: validateBlockSize(options.blockSize),
     colorMode: options.colorMode,
     crop: options.crop ?? null,
     resize: options.resize ?? null,
+    contrast: validateContrast(options.contrast ?? 0),
   };
 }
 

@@ -15,6 +15,7 @@ import {
   processImage,
   suggestFileName,
   validateBlockSize,
+  validateContrast,
 } from "./api";
 
 beforeEach(() => {
@@ -49,13 +50,30 @@ describe("validateBlockSize", () => {
   });
 });
 
+describe("validateContrast", () => {
+  it("-100〜100 の整数に丸める", () => {
+    expect(validateContrast(0)).toBe(0);
+    expect(validateContrast(-100)).toBe(-100);
+    expect(validateContrast(42.4)).toBe(42);
+    expect(validateContrast(250)).toBe(100);
+    expect(validateContrast(-250)).toBe(-100);
+    expect(validateContrast(Number.NaN)).toBe(0);
+  });
+});
+
 describe("processImage", () => {
+  it("コントラストは検証済みの値で送る", async () => {
+    invokeMock.mockResolvedValue([]);
+    await processImage(new Uint8Array(), { blockSize: 2, colorMode: "gray2", contrast: 130.6 });
+    expect(invokeMock.mock.calls[0][1].options.contrast).toBe(100);
+  });
+
   it("process_image コマンドをバイト配列と camelCase オプションで呼ぶ", async () => {
     invokeMock.mockResolvedValue([137, 80, 78, 71]);
     const result = await processImage(new Uint8Array([1, 2, 3]), { blockSize: 8, colorMode: "gray2" });
     expect(invokeMock).toHaveBeenCalledWith("process_image", {
       data: [1, 2, 3],
-      options: { blockSize: 8, colorMode: "gray2", crop: null, resize: null },
+      options: { blockSize: 8, colorMode: "gray2", crop: null, resize: null, contrast: 0 },
     });
     expect(result).toBeInstanceOf(Uint8Array);
     expect(Array.from(result)).toEqual([137, 80, 78, 71]);
@@ -66,7 +84,7 @@ describe("processImage", () => {
     const crop = { x: 1, y: 2, width: 3, height: 4 };
     const resize = { width: 5, height: 6 };
     await processImage(new Uint8Array(), { blockSize: 2, colorMode: "color16", crop, resize });
-    expect(invokeMock.mock.calls[0][1].options).toEqual({ blockSize: 2, colorMode: "color16", crop, resize });
+    expect(invokeMock.mock.calls[0][1].options).toEqual({ blockSize: 2, colorMode: "color16", crop, resize, contrast: 0 });
   });
 
   it("blockSize は検証済みの値で送る", async () => {
@@ -127,7 +145,7 @@ describe("exportImage", () => {
     expect(path).toBe("/tmp/out.jpg");
     expect(invokeMock).toHaveBeenCalledWith("export_image", {
       data: [1],
-      options: { blockSize: 4, colorMode: "color256", crop: null, resize: null },
+      options: { blockSize: 4, colorMode: "color256", crop: null, resize: null, contrast: 0 },
       export: { format: "jpeg", quality: 80 },
       path: "/tmp/out",
     });

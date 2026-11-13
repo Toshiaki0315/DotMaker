@@ -123,6 +123,30 @@ fn map_rgb(rgb: [u8; 3], mode: ColorMode) -> [u8; 3] {
     }
 }
 
+/// コントラストの調整範囲
+pub const MAX_CONTRAST: i32 = 100;
+
+/// コントラストを調整する。`amount` は -100〜100（範囲外は丸める）で 0 は変更なし。
+/// 中間値 128 を中心に、係数 f = 259(c+255) / (255(259-c))（c = amount×2.55）で拡大・縮小する。
+/// アルファ値は保持する。
+pub fn adjust_contrast(img: &RgbaImage, amount: i32) -> RgbaImage {
+    let amount = amount.clamp(-MAX_CONTRAST, MAX_CONTRAST);
+    if amount == 0 {
+        return img.clone();
+    }
+    let c = f64::from(amount) * 2.55;
+    let factor = 259.0 * (c + 255.0) / (255.0 * (259.0 - c));
+    let lut: [u8; 256] =
+        std::array::from_fn(|v| (factor * (v as f64 - 128.0) + 128.0).round().clamp(0.0, 255.0) as u8);
+    let mut out = img.clone();
+    for p in out.pixels_mut() {
+        for ch in &mut p.0[..3] {
+            *ch = lut[usize::from(*ch)];
+        }
+    }
+    out
+}
+
 /// 指定モードで減色する。アルファ値は保持する。
 pub fn reduce_colors(img: &RgbaImage, mode: ColorMode) -> RgbaImage {
     let mut out = img.clone();
@@ -209,6 +233,69 @@ mod tests {
     fn pixelate_empty_image() {
         let img = RgbaImage::new(0, 0);
         assert_eq!(pixelate(&img, 4).dimensions(), (0, 0));
+    }
+
+    // ---------- adjust_contrast ----------
+
+    fn gray(v: u8) -> RgbaImage {
+        solid(1, 1, [v, v, v, 200])
+    }
+
+    fn contrast_of(v: u8, amount: i32) -> u8 {
+        adjust_contrast(&gray(v), amount).get_pixel(0, 0)[0]
+    }
+
+    #[test]
+    fn contrast_zero_is_identity() {
+        let img = RgbaImage::from_fn(16, 16, |x, y| Rgba([(x * 16) as u8, (y * 16) as u8, 77, 99]));
+        assert_eq!(adjust_contrast(&img, 0), img);
+    }
+
+    #[test]
+    fn contrast_keeps_midpoint_and_alpha() {
+        for amount in [-100, -40, 0, 40, 100] {
+            let out = adjust_contrast(&gray(128), amount);
+            assert_eq!(*out.get_pixel(0, 0), Rgba([128, 128, 128, 200]), "{amount}");
+        }
+    }
+
+    #[test]
+    fn positive_contrast_spreads_values_away_from_midpoint() {
+        // amount=50: c=127.5, f≈2.954 → 128 + 2.954×(100−128) ≈ 45.3
+        assert_eq!(contrast_of(100, 50), 45);
+        assert!(contrast_of(160, 50) > 160);
+    }
+
+    #[test]
+    fn negative_contrast_pulls_values_toward_midpoint() {
+        let low = contrast_of(40, -50);
+        let high = contrast_of(220, -50);
+        assert!(low > 40 && low < 128, "{low}");
+        assert!(high < 220 && high > 128, "{high}");
+    }
+
+    #[test]
+    fn contrast_extremes() {
+        // +100 はほぼ二値化、-100 は一面の中間灰色
+        assert_eq!(contrast_of(100, 100), 0);
+        assert_eq!(contrast_of(160, 100), 255);
+        assert_eq!(contrast_of(0, -100), 128);
+        assert_eq!(contrast_of(255, -100), 128);
+    }
+
+    #[test]
+    fn contrast_amount_is_clamped() {
+        assert_eq!(contrast_of(100, 500), contrast_of(100, MAX_CONTRAST));
+        assert_eq!(contrast_of(100, -500), contrast_of(100, -MAX_CONTRAST));
+    }
+
+    #[test]
+    fn contrast_applies_to_each_channel() {
+        let img = solid(1, 1, [100, 128, 160, 255]);
+        let out = adjust_contrast(&img, 50);
+        assert_eq!(out.get_pixel(0, 0)[0], contrast_of(100, 50));
+        assert_eq!(out.get_pixel(0, 0)[1], 128);
+        assert_eq!(out.get_pixel(0, 0)[2], contrast_of(160, 50));
     }
 
     // ---------- reduce_colors: カラー ----------
